@@ -11,7 +11,7 @@ ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 ADD opendkim.conf /etc/opendkim.conf
 
 # Domains file contains mail users and passwords
-ADD setup.sh secret/* /root/
+ADD setup.sh secret/server.* secret/mailboxes /root/
 WORKDIR /root
 RUN /root/setup.sh
 

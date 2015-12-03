@@ -1,5 +1,14 @@
 #!/bin/bash
 
+if [ -z server.crt ] || [ -z server.key ] || [ -z mailboxes]; then
+	echo "** ERROR. You're missing secret files required for the build."
+	echo "   Make sure you create server.key, server.crt and mailboxes in secrets/"
+	exit 1
+fi
+
+# Remove comments and empty lines from mailboxes file
+sed -i -e '/^\s*$/d' -e '/\s*#.*$/d' mailboxes
+
 # Server certificate
 mv server.crt server.key /etc/postfix/
 
@@ -13,7 +22,7 @@ while read email forward passwd; do
 	echo "Add email map for $email -> $forward"
 	echo "$email	$forward" >> /etc/postfix/virtual
 	domains="$domains ${email#*@}"	
-done < domains
+done < mailboxes
 postmap /etc/postfix/virtual
 postconf -e "virtual_alias_domains=$domains"
 echo "Forwarding domains $domains" 
@@ -27,7 +36,7 @@ postconf -e smtpd_recipient_restrictions="permit_mynetworks permit_sasl_authenti
 while read email forward passwd; do
 	echo "Set SASL password for $email"
 	echo $passwd | saslpasswd2 -p -c -u $mailserver $email 
-done < domains	
+done < mailboxes	
 chown postfix.sasl /etc/sasldb2
 # Setup sasl
 cat >> /etc/postfix/sasl/smtpd.conf <<EOF
@@ -36,7 +45,7 @@ auxprop_plugin: sasldb
 mech_list: PLAIN LOGIN CRAM-MD5 DIGEST-MD5 NTLM
 EOF
 
-### Enable TLS if we have a certificate
+### Enable TLS 
 postconf -e smtpd_tls_cert_file=/etc/postfix/server.crt
 postconf -e smtpd_tls_key_file=/etc/postfix/server.key
 chmod 400 /etc/postfix/server.key
@@ -65,7 +74,7 @@ EOF
 while read email forward passwd; do
 	echo  "default._domainkey.${email#*@} ${email#*@}:default:/etc/opendkim/default.private" >> /etc/opendkim/KeyTable
 	echo  "$email default._domainkey.${email#*@}" >> /etc/opendkim/SigningTable
-done < domains
+done < mailboxes
 echo 'DKIM Sign Table'
 cat /etc/opendkim/SigningTable
 echo 'DKIM Key Table'
@@ -81,4 +90,4 @@ postconf -M spamassassin/unix="spamassassin unix -     n       n       -       -
 sed -i 's/^# rewrite_header Subject/rewrite_header Subject/' /etc/spamassassin/local.cf
 
 ### Cleanup by removing the configuration file
-rm -f domains
+rm -f mailboxes
