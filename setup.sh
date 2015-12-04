@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -z server.crt ] || [ -z server.key ] || [ -z mailboxes]; then
+if [ -z server.crt ] || [ -z server.key ] || [ -z mailboxes ]; then
 	echo "** ERROR. You're missing secret files required for the build."
 	echo "   Make sure you create server.key, server.crt and mailboxes in secrets/"
 	exit 1
@@ -88,6 +88,20 @@ postconf -P "submission/inet/content_filter=spamassassin"
 postconf -P "smtp/inet/content_filter=spamassassin"
 postconf -M spamassassin/unix="spamassassin unix -     n       n       -       -       pipe user=debian-spamd argv=/usr/bin/spamc -f -e /usr/sbin/sendmail -oi -f \${sender} \${recipient}"
 sed -i 's/^# rewrite_header Subject/rewrite_header Subject/' /etc/spamassassin/local.cf
+
+
+### Configure SRSd
+postconf -e sender_canonical_maps=tcp:127.0.0.1:10001
+postconf -e sender_canonical_classes=envelope_sender
+postconf -e recipient_canonical_maps=tcp:127.0.0.1:10002
+postconf -e recipient_canonical_classes=envelope_recipient,header_recipient
+domains2=$(echo $domains | tr ' ' ',')
+cat >/etc/supervisor/conf.d/postsrsd.conf <<EOF
+[program:postsrsd]
+command=postsrsd -d$mailserver -s/etc/postsrsd.secret -unobody -c/var/lib/postsrsd -p/var/run/postsrs.pid -X$domains2
+pidfile=/var/run/postsrsd.pid
+EOF
+cat /etc/supervisor/conf.d/postsrsd.conf
 
 ### Cleanup by removing the configuration file
 rm -f mailboxes
