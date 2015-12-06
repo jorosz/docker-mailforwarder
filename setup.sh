@@ -62,7 +62,7 @@ cp /etc/postfix/server.key /etc/opendkim/default.private
 
 postconf -e milter_protocol=2
 postconf -e milter_default_action=accept
-postconf -e smtpd_milters=inet:localhost:12301
+postconf -e smtpd_milters=unix:/var/spool/postfix/spamass/spamass.sock,inet:localhost:12301
 postconf -e non_smtpd_milters=inet:localhost:12301
 
 cat >> /etc/opendkim/TrustedHosts <<EOF
@@ -84,9 +84,10 @@ chown opendkim /etc/opendkim/default.private
 ### Add some spam filtering
 echo "/^X-Spam-Level: \*{7,}.*/ DISCARD spam">/etc/postfix/header_checks
 postconf -e header_checks=regexp:/etc/postfix/header_checks
-postconf -P "submission/inet/content_filter=spamassassin"
-postconf -P "smtp/inet/content_filter=spamassassin"
-postconf -M spamassassin/unix="spamassassin unix -     n       n       -       -       pipe user=debian-spamd argv=/usr/bin/spamc -f -e /usr/sbin/sendmail -oi -f \${sender} \${recipient}"
+# We're using milters now
+#postconf -P "submission/inet/content_filter=spamassassin"
+#postconf -P "smtp/inet/content_filter=spamassassin"
+#postconf -M spamassassin/unix="spamassassin unix -     n       n       -       -       pipe user=debian-spamd argv=/usr/bin/spamc -f -e /usr/sbin/sendmail -oi -f \${sender} \${recipient}"
 sed -i 's/^# rewrite_header Subject/rewrite_header Subject/' /etc/spamassassin/local.cf
 
 

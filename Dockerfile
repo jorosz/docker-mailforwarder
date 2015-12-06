@@ -1,6 +1,6 @@
 FROM debian:testing
 RUN apt-get update && \
-	DEBIAN_FRONTEND=noninteractive apt-get -y install --fix-missing --no-install-recommends postfix sasl2-bin opendkim libsasl2-modules supervisor rsyslog spamassassin postsrsd spamc && \
+	DEBIAN_FRONTEND=noninteractive apt-get -y install --fix-missing --no-install-recommends postfix sasl2-bin opendkim libsasl2-modules supervisor rsyslog spamassassin postsrsd spamc spamass-milter && \
 	apt-get install --reinstall python-pkg-resources && \
 	apt-get clean
 
