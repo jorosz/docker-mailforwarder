@@ -5,7 +5,7 @@ RUN apt-get update && \
 	apt-get clean
 
 # This is the hostname we want to have
-ENV mailserver mx.jozsef.name
+ENV mailserver server.jozsef.name
 
 # Copy base config files
 ADD supervisord.conf /etc/supervisor/conf.d/supervisord.conf
