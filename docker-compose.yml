@@ -1,0 +1,5 @@
+version: '3'
+services:
+  mailserver:
+    build: .
+    image: 197795502251.dkr.ecr.eu-central-1.amazonaws.com/mailserver
