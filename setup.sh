@@ -15,18 +15,23 @@ mv server.crt server.key /etc/postfix/
 postconf -e myhostname=$mailserver
 postconf -e mydomain=$mailserver
 postconf -F '*/*/chroot = n'
+postconf -e message_size_limit=26214400
 
 ## Setup virtual aliases, generate /etc/postfix/virtual from /root/domains
+declare -A domains
+declare -a emails
 postconf -e virtual_alias_maps=hash:/etc/postfix/virtual
 while read email forward passwd; do
 	echo "Add email map for $email -> $forward"
 	echo "$email	$forward" >> /etc/postfix/virtual
-	domains="$domains ${email#*@}"	
+	domains[${email#*@}]=1
+	emails+=($email)
 done < mailboxes
 postmap /etc/postfix/virtual
-postconf -e "virtual_alias_domains=$domains"
-echo "Forwarding domains $domains" 
-
+domains2=$(echo ${!domains[@]} | tr ' ' ',')
+postconf -e "virtual_alias_domains=$domains2"
+echo "Forwarding domains ${!domains[@]}"
+echo "Forwarding emails ${emails[@]}"
 
 ### Enable SASL
 postconf -e smtpd_sasl_auth_enable=yes
@@ -35,8 +40,8 @@ postconf -e smtpd_recipient_restrictions="permit_mynetworks permit_sasl_authenti
 # generate SASL passwords for these entries
 while read email forward passwd; do
 	echo "Set SASL password for $email"
-	echo $passwd | saslpasswd2 -p -c -u $mailserver $email 
-done < mailboxes	
+	echo $passwd | saslpasswd2 -p -c -u $mailserver $email
+done < mailboxes
 chown postfix.sasl /etc/sasldb2
 # Setup sasl
 cat >> /etc/postfix/sasl/smtpd.conf <<EOF
@@ -45,7 +50,7 @@ auxprop_plugin: sasldb
 mech_list: PLAIN LOGIN CRAM-MD5 DIGEST-MD5 NTLM
 EOF
 
-### Enable TLS 
+### Enable TLS
 postconf -e smtpd_tls_cert_file=/etc/postfix/server.crt
 postconf -e smtpd_tls_key_file=/etc/postfix/server.key
 chmod 400 /etc/postfix/server.key
@@ -54,7 +59,7 @@ postconf -P "submission/inet/syslog_name=postfix/submission"
 postconf -P "submission/inet/smtpd_tls_security_level=encrypt"
 postconf -P "submission/inet/smtpd_sasl_auth_enable=yes"
 postconf -P "submission/inet/milter_macro_daemon_name=ORIGINATING"
-postconf -P "submission/inet/smtpd_recipient_restrictions=permit_sasl_authenticated,reject"	
+postconf -P "submission/inet/smtpd_recipient_restrictions=permit_sasl_authenticated,reject"
 
 ## Enable OpenDKIM
 mkdir -p /etc/opendkim
@@ -71,13 +76,16 @@ localhost
 $mailserver
 EOF
 
-while read email forward passwd; do
-	echo  "default._domainkey.${email#*@} ${email#*@}:default:/etc/opendkim/default.private" >> /etc/opendkim/KeyTable
-	echo  "$email default._domainkey.${email#*@}" >> /etc/opendkim/SigningTable
-done < mailboxes
 echo 'DKIM Sign Table'
+for email in "${emails[@]}"; do
+	echo  "$email key.${email#*@}" >> /etc/opendkim/SigningTable
+done < mailboxes
 cat /etc/opendkim/SigningTable
+
 echo 'DKIM Key Table'
+for domain in "${!domains[@]}" ; do
+	echo  "key.${domain} ${domain}:default:/etc/opendkim/default.private" >> /etc/opendkim/KeyTable
+done
 cat /etc/opendkim/KeyTable
 chown opendkim /etc/opendkim/default.private
 
@@ -96,7 +104,6 @@ postconf -e sender_canonical_maps=tcp:127.0.0.1:10001
 postconf -e sender_canonical_classes=envelope_sender
 postconf -e recipient_canonical_maps=tcp:127.0.0.1:10002
 postconf -e recipient_canonical_classes=envelope_recipient,header_recipient
-domains2=$(echo $domains | tr ' ' ',')
 cat >/etc/supervisor/conf.d/postsrsd.conf <<EOF
 [program:postsrsd]
 command=postsrsd -d$mailserver -s/etc/postsrsd.secret -unobody -c/var/lib/postsrsd -p/var/run/postsrs.pid -X$domains2
