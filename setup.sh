@@ -16,6 +16,9 @@ postconf -e myhostname=$mailserver
 postconf -e mydomain=$mailserver
 postconf -F '*/*/chroot = n'
 postconf -e message_size_limit=26214400
+postconf -e smtp_tls_security_level=may
+postconf -e smtp_tls_loglevel=1
+
 
 ## Setup virtual aliases, generate /etc/postfix/virtual from /root/domains
 declare -A domains
