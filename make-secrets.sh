@@ -1,7 +1,7 @@
 #! /bin/bash
 
 #Change as required
-server=mx.jozsef.name
+server=server.jozsef.name
 country=GB
 state=England
 locality=Greater\ London
@@ -17,7 +17,7 @@ if [ -f server.key ]; then
 	exit
 fi
 
-openssl genrsa -des3 -out server.key -passout pass:alma1234 1024
+openssl genrsa -des3 -out server.key -passout pass:alma1234 2048
 openssl rsa -in server.key -passin pass:alma1234 -out server.key
 openssl req -new -key server.key -out server.csr -passin pass:alma1234 -subj "/C=$country/ST=$state/L=$locality/O=$organization/OU=$organizationalunit/CN=$domain/emailAddress=$email"
 openssl x509 -req -days 365 -in server.csr -signkey server.key -out server.crt

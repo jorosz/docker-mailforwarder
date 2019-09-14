@@ -1,6 +1,6 @@
 FROM debian:testing
 RUN apt-get update && \
-	DEBIAN_FRONTEND=noninteractive apt-get -y install --fix-missing --no-install-recommends postfix sasl2-bin opendkim libsasl2-modules supervisor rsyslog spamassassin postsrsd spamc spamass-milter && \
+	DEBIAN_FRONTEND=noninteractive apt-get -y install --fix-missing --no-install-recommends postfix sasl2-bin opendkim libsasl2-modules supervisor rsyslog spamassassin postsrsd spamc spamass-milter dovecot-common dovecot-imapd && \
 	apt-get install --reinstall python-pkg-resources && \
 	apt-get clean
 
@@ -16,5 +16,5 @@ ADD setup.sh secret/server.* secret/mailboxes /root/
 WORKDIR /root
 RUN /root/setup.sh
 
-EXPOSE 25 587
+EXPOSE 25 587 993
 CMD /usr/bin/supervisord -c /etc/supervisor/supervisord.conf

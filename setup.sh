@@ -111,5 +111,38 @@ pidfile=/var/run/postsrsd.pid
 EOF
 cat /etc/supervisor/conf.d/postsrsd.conf
 
+##### DOVECOT configuration
+
+# Set logging to STDOUT/STDERR
+sed -i -e 's,#log_path = syslog,log_path = /dev/stderr,' \
+		-e 's,#info_log_path =,info_log_path = /dev/stdout,' \
+		-e 's,#debug_log_path =,debug_log_path = /dev/stdout,' \
+		/etc/dovecot/conf.d/10-logging.conf
+
+# Set default passdb to passwd and create appropriate 'users' file
+sed -i -e 's,!include auth-system.conf.ext,!include auth-passwdfile.conf.ext,' \
+		-e 's,#!include auth-passwdfile.conf.ext,#!include auth-system.conf.ext,' \
+		/etc/dovecot/conf.d/10-auth.conf
+
+install -m 640 -o dovecot -g mail /dev/null /etc/dovecot/users
+groupadd --gid 1000 vmail
+useradd --gid 1000 --uid 1000 --group mail vmail
+mkdir -p /home/vmail
+chown -R vmail.vmail /home/vmail
+
+while read email forward passwd; do
+	pass=$(doveadm pw -p $passwd)
+	echo "$email:$pass:1000:1000::/home/vmail::" >> /etc/dovecot/users
+done < mailboxes
+cat /etc/dovecot/users
+
+# Set SSL certs
+mkdir -p /etc/ssl/dovecot
+cp /etc/postfix/server.key /etc/ssl/dovecot/server.key
+cp /etc/postfix/server.crt /etc/ssl/dovecot/server.pem
+sed -i -e 's,^ssl_cert =.*,ssl_cert = </etc/ssl/dovecot/server.pem,' \
+		-e 's,^ssl_key =.*,ssl_key = </etc/ssl/dovecot/server.key,' \
+		/etc/dovecot/conf.d/10-ssl.conf
+
 ### Cleanup by removing the configuration file
 rm -f mailboxes
