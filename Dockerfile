@@ -1,7 +1,6 @@
-FROM debian:testing
+FROM debian:stable
 RUN apt-get update && \
-	DEBIAN_FRONTEND=noninteractive apt-get -y install --fix-missing --no-install-recommends postfix sasl2-bin opendkim libsasl2-modules supervisor rsyslog spamassassin postsrsd spamc spamass-milter dovecot-common dovecot-imapd && \
-	apt-get install --reinstall python-pkg-resources && \
+	DEBIAN_FRONTEND=noninteractive apt-get -y install --fix-missing --no-install-recommends postfix sasl2-bin opendkim libsasl2-modules supervisor rsyslog spamassassin postsrsd spamc spamass-milter dovecot-common dovecot-imapd python-pkg-resources && \
 	apt-get clean
 
 # This is the hostname we want to have
